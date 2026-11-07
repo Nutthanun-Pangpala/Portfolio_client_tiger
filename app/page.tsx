@@ -37,8 +37,8 @@ import {
 } from "react-icons/si";
 import GithubIcon from "./components/GithubIcon";
 import SiteNav from "./components/Sitenav";
-import { coverOf } from "./lib/api";
 import { trackPointer } from "./lib/Pointer";
+import { coverOf } from "./lib/api";
 
 import dynamic from "next/dynamic";
 
