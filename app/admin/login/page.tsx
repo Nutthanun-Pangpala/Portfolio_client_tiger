@@ -1,27 +1,28 @@
-'use client';
+"use client";
 
-import { api, errMsg } from '@/app/lib/admin-api';
-import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { api, errMsg } from "@/app/lib/admin-api";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError('');
+    setError("");
     try {
-      await api('/auth/login', {
-        method: 'POST',
+      await api("/auth/login", {
+        method: "POST",
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
-      router.replace('/admin/projects');
+      router.replace("/admin/projects");
     } catch (err) {
       setError(errMsg(err));
       setBusy(false);
@@ -32,7 +33,16 @@ export default function LoginPage() {
     <main className="login-page">
       <div className="login-card" data-enter>
         <div className="login-mark" aria-hidden>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="4" y="11" width="16" height="10" rx="2" />
             <path d="M8 11V7a4 4 0 0 1 8 0v4" />
           </svg>
@@ -67,7 +77,7 @@ export default function LoginPage() {
               <input
                 id="login-password"
                 className="login-input"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 required
                 minLength={8}
                 autoComplete="current-password"
@@ -79,9 +89,19 @@ export default function LoginPage() {
                 type="button"
                 className="login-toggle"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
               >
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
                   {showPassword ? (
                     <>
                       <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94" />
@@ -99,9 +119,13 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button className="button button-primary login-submit" disabled={busy} aria-busy={busy}>
+          <button
+            className="button button-primary login-submit"
+            disabled={busy}
+            aria-busy={busy}
+          >
             {busy && <span className="login-spinner" aria-hidden />}
-            {busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}
+            {busy ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
           </button>
         </form>
       </div>
