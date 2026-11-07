@@ -1,7 +1,7 @@
 import { cache } from "react";
 
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5555";
 
 export type Project = {
   id: string;
