@@ -4,7 +4,7 @@ import { ErrorBox, btnGhost } from '@/app/admin/_components/ui';
 import { ApiError, api, errMsg } from '@/app/lib/admin-api';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 
 const iconProps = {
   viewBox: '0 0 24 24',
@@ -39,9 +39,20 @@ const NAV = [
   },
 ];
 
+// usePathname อยู่ในคอมโพเนนต์เล็กๆ นี้เท่านั้น และถูกห่อด้วย <Suspense> ตอนใช้งาน
+// (Next.js ที่เปิด Cache Components ไม่ยอมให้เรียก usePathname นอก Suspense ในเส้นทาง [id])
+function NavLink({ href, label, icon }: { href: string; label: string; icon: ReactNode }) {
+  const pathname = usePathname();
+  return (
+    <Link href={href} className="admin-nav-link" aria-current={pathname.startsWith(href) ? 'page' : undefined}>
+      {icon}
+      {label}
+    </Link>
+  );
+}
+
 export default function PanelLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [email, setEmail] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -73,20 +84,22 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
       <aside className="admin-side">
         <div className="admin-brand">
           <span className="admin-brand-mark" aria-hidden />
-          Dashboard Portfolio
+          หลังบ้าน
         </div>
 
         <nav className="admin-nav">
           {NAV.map((n) => (
-            <Link
+            <Suspense
               key={n.href}
-              href={n.href}
-              className="admin-nav-link"
-              aria-current={pathname.startsWith(n.href) ? 'page' : undefined}
+              fallback={
+                <Link href={n.href} className="admin-nav-link">
+                  {n.icon}
+                  {n.label}
+                </Link>
+              }
             >
-              {n.icon}
-              {n.label}
-            </Link>
+              <NavLink href={n.href} label={n.label} icon={n.icon} />
+            </Suspense>
           ))}
         </nav>
 
