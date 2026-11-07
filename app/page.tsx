@@ -37,8 +37,15 @@ import {
 } from "react-icons/si";
 import GithubIcon from "./components/GithubIcon";
 import SiteNav from "./components/Sitenav";
+import {
+  coverOf,
+  localizeExperience,
+  localizeProject,
+  type Experience,
+  type Project,
+} from "./lib/api";
+import { useLang } from "./lib/i18n";
 import { trackPointer } from "./lib/Pointer";
-import { coverOf } from "./lib/api";
 
 import dynamic from "next/dynamic";
 
@@ -47,41 +54,20 @@ const Lanyard = dynamic(() => import("./components/Lanyard"), {
   loading: () => <div className="lanyard" aria-hidden="true" />,
 });
 
-type Project = {
-  id: string;
-  title: string;
-  slug: string;
-  description: string;
-  role?: string | null;
-  imageUrl?: string | null;
-  images?: string[];
-  githubUrl?: string | null;
-  demoUrl?: string | null;
-  technologies: string[];
-  isFeatured: boolean;
-};
-
-type Experience = {
-  id: string;
-  company: string;
-  position: string;
-  employmentType?: string | null;
-  description: string;
-  startDate: string;
-  endDate?: string | null;
-  technologies: string[];
-};
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 const EMAIL = "nutthanunpengpala@gmail.com";
 const GITHUB_URL = "https://github.com/Nutthanun-Pangpala";
 
-type Skill = { name: string; Icon: IconType; color: string };
+// Internal value for the "show everything" filter. Shown as t.projects.all.
+const ALL = "All";
 
-const skillGroups: { title: string; items: Skill[] }[] = [
+type Skill = { name: string; Icon: IconType; color: string };
+type SkillGroupKey = "frontend" | "backend" | "mobile" | "tools";
+
+const skillGroups: { key: SkillGroupKey; items: Skill[] }[] = [
   {
-    title: "Frontend",
+    key: "frontend",
     items: [
       { name: "TypeScript", Icon: SiTypescript, color: "#3178c6" },
       { name: "JavaScript", Icon: SiJavascript, color: "#f7df1e" },
@@ -90,7 +76,7 @@ const skillGroups: { title: string; items: Skill[] }[] = [
     ],
   },
   {
-    title: "Backend",
+    key: "backend",
     items: [
       { name: "Node.js", Icon: SiNodedotjs, color: "#5fa04e" },
       { name: "NestJS", Icon: SiNestjs, color: "#e0234e" },
@@ -102,7 +88,7 @@ const skillGroups: { title: string; items: Skill[] }[] = [
     ],
   },
   {
-    title: "Mobile",
+    key: "mobile",
     items: [
       { name: "Flutter", Icon: SiFlutter, color: "#54c5f8" },
       { name: "Dart", Icon: SiDart, color: "#2bb7f6" },
@@ -110,7 +96,7 @@ const skillGroups: { title: string; items: Skill[] }[] = [
     ],
   },
   {
-    title: "Tools",
+    key: "tools",
     items: [
       { name: "Git", Icon: SiGit, color: "#f05032" },
       { name: "Docker", Icon: SiDocker, color: "#2496ed" },
@@ -122,25 +108,23 @@ const skillGroups: { title: string; items: Skill[] }[] = [
   },
 ];
 
-const focusAreas = [
-  { title: "Web development", detail: "React, Next.js, TypeScript" },
-  { title: "Mobile applications", detail: "Flutter, Dart, Firebase" },
-  { title: "Backend and databases", detail: "NestJS, Prisma, PostgreSQL" },
-];
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatDate(date: string, lang: "en" | "th") {
+  // th-TH shows Buddhist Era years (e.g. มิ.ย. 2568), which is what Thai
+  // readers expect. Use "th-TH-u-ca-gregory" if you prefer CE years.
+  return new Intl.DateTimeFormat(lang === "th" ? "th-TH" : "en", {
     month: "short",
     year: "numeric",
   }).format(new Date(date));
 }
 
 export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const { lang, t } = useLang();
+
+  const [rawProjects, setRawProjects] = useState<Project[]>([]);
+  const [rawExperiences, setRawExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
-  const [filter, setFilter] = useState("All");
+  const [filter, setFilter] = useState(ALL);
   const [copied, setCopied] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -163,8 +147,8 @@ export default function Home() {
           experiencesResponse.json(),
         ]);
 
-        setProjects(projectData);
-        setExperiences(experienceData);
+        setRawProjects(projectData);
+        setRawExperiences(experienceData);
         setApiError(false);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -179,6 +163,17 @@ export default function Home() {
     loadPortfolio();
     return () => controller.abort();
   }, []);
+
+  // Pick the Thai or English text for the current language. The data is only
+  // fetched once; switching language just re-maps it.
+  const projects = useMemo(
+    () => rawProjects.map((project) => localizeProject(project, lang)),
+    [rawProjects, lang],
+  );
+  const experiences = useMemo(
+    () => rawExperiences.map((item) => localizeExperience(item, lang)),
+    [rawExperiences, lang],
+  );
 
   // The gold line on the timeline fills in as you read down the page.
   useEffect(() => {
@@ -209,16 +204,18 @@ export default function Home() {
     };
   }, [experiences]);
 
+  // Technology names are the same in both languages, so the filter keeps
+  // working when the language changes.
   const technologies = useMemo(
     () => [
-      "All",
-      ...Array.from(new Set(projects.flatMap((p) => p.technologies))),
+      ALL,
+      ...Array.from(new Set(rawProjects.flatMap((p) => p.technologies))),
     ],
-    [projects],
+    [rawProjects],
   );
 
   const visibleProjects =
-    filter === "All"
+    filter === ALL
       ? projects
       : projects.filter((project) => project.technologies.includes(filter));
 
@@ -244,7 +241,7 @@ export default function Home() {
             style={{ "--i": 0 } as React.CSSProperties}
           >
             <span className="status-dot" />
-            Open to new opportunities
+            {t.hero.status}
           </div>
 
           <h1
@@ -262,7 +259,7 @@ export default function Home() {
             data-enter
             style={{ "--i": 2 } as React.CSSProperties}
           >
-            Full-stack software developer
+            {t.hero.role}
           </p>
 
           <p
@@ -270,8 +267,7 @@ export default function Home() {
             data-enter
             style={{ "--i": 3 } as React.CSSProperties}
           >
-            I design and build web applications and software that solve
-            real-world problems, from the interface to the database.
+            {t.hero.description}
           </p>
 
           <div
@@ -280,10 +276,10 @@ export default function Home() {
             style={{ "--i": 4 } as React.CSSProperties}
           >
             <a href="#projects" className="button button-primary">
-              See my projects <ArrowDownRight size={18} />
+              {t.hero.seeProjects} <ArrowDownRight size={18} />
             </a>
             <a href="#contact" className="button button-secondary">
-              Contact me <ArrowUpRight size={17} />
+              {t.hero.contact} <ArrowUpRight size={17} />
             </a>
           </div>
 
@@ -292,7 +288,7 @@ export default function Home() {
             data-enter
             style={{ "--i": 5 } as React.CSSProperties}
           >
-            Based in Thailand. Web, mobile and backend.
+            {t.hero.meta}
           </p>
         </div>
 
@@ -308,25 +304,17 @@ export default function Home() {
       <section className="section" id="about">
         <div className="container section-layout">
           <div className="section-head">
-            <h2>About</h2>
-            <p>Curious by nature, driven by technology.</p>
+            <h2>{t.about.title}</h2>
+            <p>{t.about.subtitle}</p>
           </div>
 
           <div className="about-body">
-            <p className="about-lead">
-              I&apos;m a software engineering student at Mae Fah Luang
-              University with a foundation in web design and development. I
-              focus on responsive interfaces and well-documented code, from the
-              UI down to the database and APIs.
-            </p>
-            <p>
-              My goal is to keep learning, write maintainable code, and turn
-              ideas into applications that people can actually use.
-            </p>
+            <p className="about-lead">{t.about.lead}</p>
+            <p>{t.about.body}</p>
 
             <dl className="focus-list">
-              {focusAreas.map((area) => (
-                <div className="focus-item" key={area.title}>
+              {t.about.focus.map((area) => (
+                <div className="focus-item" key={area.detail}>
                   <dt>{area.title}</dt>
                   <dd>{area.detail}</dd>
                 </div>
@@ -339,14 +327,14 @@ export default function Home() {
       <section className="section" id="skills">
         <div className="container section-layout">
           <div className="section-head">
-            <h2>Skills</h2>
-            <p>The tools I use to take an idea from sketch to production.</p>
+            <h2>{t.skills.title}</h2>
+            <p>{t.skills.subtitle}</p>
           </div>
 
           <div className="skill-groups">
             {skillGroups.map((group) => (
-              <div className="skill-group" key={group.title}>
-                <h3>{group.title}</h3>
+              <div className="skill-group" key={group.key}>
+                <h3>{t.skills.groups[group.key]}</h3>
                 <ul className="skill-icons">
                   {group.items.map(({ name, Icon, color }) => (
                     <li
@@ -369,19 +357,18 @@ export default function Home() {
       <section className="section" id="projects">
         <div className="container section-layout">
           <div className="section-head">
-            <h2>Projects</h2>
+            <h2>{t.projects.title}</h2>
             <p>
               {loading
-                ? "Loading projects..."
-                : `${projects.length} ${projects.length === 1 ? "project" : "projects"}. Filter by technology to narrow them down.`}
+                ? t.projects.loading
+                : t.projects.count(projects.length)}
             </p>
           </div>
 
           <div>
             {apiError && (
               <div className="api-notice" role="alert">
-                Can&apos;t reach the API at {API_URL}. Start the NestJS server
-                (port 3001) to load your projects and experience.
+                {t.projects.apiNotice(API_URL)}
               </div>
             )}
 
@@ -389,7 +376,7 @@ export default function Home() {
               <div
                 className="filters"
                 role="group"
-                aria-label="Filter projects"
+                aria-label={t.projects.filterAria}
               >
                 {technologies.map((tech) => (
                   <button
@@ -399,22 +386,19 @@ export default function Home() {
                     aria-pressed={filter === tech}
                     onClick={() => setFilter(tech)}
                   >
-                    {tech}
+                    {tech === ALL ? t.projects.all : tech}
                   </button>
                 ))}
               </div>
             )}
 
             {loading ? (
-              <div className="empty-state">Loading projects...</div>
+              <div className="empty-state">{t.projects.loading}</div>
             ) : projects.length === 0 ? (
               <div className="empty-state">
                 <Code2 size={28} />
-                <h3>No projects yet</h3>
-                <p>
-                  Add Project records in Prisma Studio and they will show up
-                  here.
-                </p>
+                <h3>{t.projects.emptyTitle}</h3>
+                <p>{t.projects.emptyBody}</p>
               </div>
             ) : (
               <div className="project-grid">
@@ -442,12 +426,14 @@ export default function Home() {
                       )}
 
                       {project.isFeatured && (
-                        <span className="featured-label">Featured</span>
+                        <span className="featured-label">
+                          {t.projects.featured}
+                        </span>
                       )}
                       {project.demoUrl && (
                         <span className="live-badge">
                           <span className="live-dot" />
-                          Live
+                          {t.projects.live}
                         </span>
                       )}
                     </div>
@@ -484,13 +470,13 @@ export default function Home() {
                             target="_blank"
                             rel="noreferrer"
                           >
-                            Visit site <ArrowUpRight size={15} />
+                            {t.projects.visitSite} <ArrowUpRight size={15} />
                           </a>
                         ) : (
                           <span />
                         )}
                         <span className="project-more">
-                          Details <ArrowRight size={15} />
+                          {t.projects.details} <ArrowRight size={15} />
                         </span>
                       </div>
                     </div>
@@ -505,23 +491,18 @@ export default function Home() {
       <section className="section" id="experience">
         <div className="container section-layout">
           <div className="section-head">
-            <h2>Experience</h2>
-            <p>
-              Where I&apos;ve worked and what I&apos;ve learned along the way.
-            </p>
+            <h2>{t.experience.title}</h2>
+            <p>{t.experience.subtitle}</p>
           </div>
 
           <div>
             {loading ? (
-              <div className="empty-state">Loading experience...</div>
+              <div className="empty-state">{t.experience.loading}</div>
             ) : experiences.length === 0 ? (
               <div className="empty-state">
                 <BriefcaseBusiness size={28} />
-                <h3>Nothing here yet</h3>
-                <p>
-                  Add Experience records in Prisma Studio and your timeline will
-                  appear here.
-                </p>
+                <h3>{t.experience.emptyTitle}</h3>
+                <p>{t.experience.emptyBody}</p>
               </div>
             ) : (
               <div className="timeline" ref={timelineRef}>
@@ -530,11 +511,11 @@ export default function Home() {
                     <span className="timeline-marker" />
 
                     <p className="timeline-date">
-                      {formatDate(experience.startDate)}
+                      {formatDate(experience.startDate, lang)}
                       {" – "}
                       {experience.endDate
-                        ? formatDate(experience.endDate)
-                        : "Present"}
+                        ? formatDate(experience.endDate, lang)
+                        : t.experience.present}
                     </p>
 
                     <div className="timeline-title-row">
@@ -571,18 +552,15 @@ export default function Home() {
       <section className="section contact-section" id="contact">
         <div className="container contact-inner">
           <h2>
-            Have an idea?
+            {t.contact.titleLine1}
             <br />
-            Let&apos;s build it together.
+            {t.contact.titleLine2}
           </h2>
-          <p>
-            I&apos;m always happy to talk about technology, creative ideas and
-            opportunities to build something meaningful.
-          </p>
+          <p>{t.contact.body}</p>
 
           <div className="hero-actions">
             <a className="button button-primary" href={`mailto:${EMAIL}`}>
-              Send an email <Mail size={17} />
+              {t.contact.sendEmail} <Mail size={17} />
             </a>
             <button
               type="button"
@@ -590,7 +568,7 @@ export default function Home() {
               onClick={copyEmail}
             >
               {copied ? <Check size={17} /> : <Copy size={17} />}
-              {copied ? "Copied" : EMAIL}
+              {copied ? t.contact.copied : EMAIL}
             </button>
             <a
               className="button button-secondary"
@@ -598,11 +576,11 @@ export default function Home() {
               target="_blank"
               rel="noreferrer"
             >
-              <GithubIcon size={17} /> GitHub
+              <GithubIcon size={17} /> {t.contact.github}
             </a>
           </div>
           <span className="sr-only" aria-live="polite">
-            {copied ? "Email address copied" : ""}
+            {copied ? t.contact.copiedSr : ""}
           </span>
         </div>
       </section>
@@ -610,7 +588,7 @@ export default function Home() {
       <footer className="container footer">
         <span>Nutthanun Pengpala</span>
         <a href="#home" className="back-to-top">
-          Back to top <ArrowUpRight size={15} />
+          {t.footer.backToTop} <ArrowUpRight size={15} />
         </a>
       </footer>
     </main>

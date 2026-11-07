@@ -3,19 +3,17 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { LANGS } from "../lib/dictionary";
+import { useLang } from "../lib/i18n";
 
-const links = [
-  { id: "about", label: "About" },
-  { id: "skills", label: "Skills" },
-  { id: "projects", label: "Projects" },
-  { id: "experience", label: "Experience" },
-];
+const linkIds = ["about", "skills", "projects", "experience"] as const;
 
-const observed = ["home", ...links.map((link) => link.id), "contact"];
+const observed = ["home", ...linkIds, "contact"];
 
 export default function SiteNav() {
   const navRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState("");
+  const { lang, setLang, t } = useLang();
 
   // Scroll progress + "scrolled" state. Written straight to the DOM so the
   // page does not re-render on every scroll event.
@@ -71,25 +69,42 @@ export default function SiteNav() {
     <nav className="nav" ref={navRef} data-scrolled="false">
       <div className="container nav-inner">
         <Link href="/" className="brand">
-          Portfolio
+          {t.nav.brand}
         </Link>
 
         <div className="nav-links">
-          {links.map((link) => (
+          {linkIds.map((id) => (
             <Link
-              key={link.id}
-              href={`/#${link.id}`}
+              key={id}
+              href={`/#${id}`}
               className="nav-link"
-              aria-current={active === link.id ? "true" : undefined}
+              aria-current={active === id ? "true" : undefined}
             >
-              {link.label}
+              {t.nav[id]}
             </Link>
           ))}
         </div>
 
-        <Link href="/#contact" className="button button-small">
-          Contact me <ArrowUpRight size={15} />
-        </Link>
+        <div className="nav-actions">
+          <div className="lang-switch" role="group" aria-label={t.nav.language}>
+            {LANGS.map((code) => (
+              <button
+                key={code}
+                type="button"
+                className="lang-option"
+                lang={code}
+                aria-pressed={lang === code}
+                onClick={() => setLang(code)}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <Link href="/#contact" className="button button-small">
+            {t.nav.contact} <ArrowUpRight size={15} />
+          </Link>
+        </div>
       </div>
 
       <div className="progress" aria-hidden="true" />

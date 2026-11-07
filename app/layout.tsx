@@ -1,12 +1,19 @@
-
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import "./globals.css";
+import { LanguageProvider } from "./lib/i18n";
+import { getLang } from "./lib/lang";
 
 export const metadata: Metadata = {
-  title: 'Nutthanun Pengpala | Developer Portfolio',
+  title: "Nutthanun Pengpala | Developer Portfolio",
   description:
-    'Software developer portfolio featuring projects, skills, and experience.',
+    "Software developer portfolio featuring projects, skills, and experience.",
 };
+
+async function LanguageGate({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
+  return <LanguageProvider initialLang={lang}>{children}</LanguageProvider>;
+}
 
 export default function RootLayout({
   children,
@@ -15,7 +22,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          <LanguageGate>{children}</LanguageGate>
+        </Suspense>
+      </body>
     </html>
   );
 }
